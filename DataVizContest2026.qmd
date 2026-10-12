@@ -505,10 +505,10 @@ for (i in seq_along(p_map_plotly$x$data)) {
 p_top <-  ggplot(
   C_top24,
   aes(
-    key = Country,
-    ids = Country,
+    key = Economy_code,
+    ids = Economy_code,
     x = Average_TotalPM2.5_Concentration,
-    y = reorder(Country, Average_TotalPM2.5_Concentration),
+    y = reorder(Economy_code, Average_TotalPM2.5_Concentration),
     fill = Average_TotalPM2.5_Concentration,
     text = paste0(
       "<b>", Country, "</b>",
@@ -640,10 +640,10 @@ for (i in seq_along(p_top_plotly$x$data)) {
 p_bottom <- ggplot(
   C_bottom24,
   aes(
-    key = Country,
-    ids = Country,
+    key = Economy_code,
+    ids = Economy_code,
     x = Average_TotalPM2.5_Concentration,
-    y = reorder(Country, Average_TotalPM2.5_Concentration),
+    y = reorder(Economy_code, Average_TotalPM2.5_Concentration),
     fill = Average_TotalPM2.5_Concentration,
     text = paste0(
       "<b>", Country, "</b>",
@@ -1776,9 +1776,9 @@ This dashboard presents statistics on PM2.5 exposure, concentration, and emissio
 
 **DATA SOURCES**
 
-- [PM2.5 Emissions](https://github.com/Trvscape/PM2.5-Pollution-Dashboard/blob/main/A.csv)
-- [PM2.5 Exposure](https://github.com/Trvscape/PM2.5-Pollution-Dashboard/blob/main/B.csv)
-- [PM2.5 Concentration](https://github.com/Trvscape/PM2.5-Pollution-Dashboard/blob/main/C.csv)
+- [PM2.5 Emissions](https://github.com/Trvscape/DataVizContest2026/blob/main/A.csv)
+- [PM2.5 Exposure](https://github.com/Trvscape/DataVizContest2026/blob/main/B.csv)
+- [PM2.5 Concentration](https://github.com/Trvscape/DataVizContest2026/blob/main/C.csv)
 
 **Original source:** [Asian Transport Observatory (ATO)](https://asiantransportobservatory.org/snd/)
 
