@@ -1,0 +1,355 @@
+body {
+  background-color:#EEF3F3;
+}
+.navbar {
+  background-color: #B8D8D8 !important;
+}
+.quarto-dashboard #quarto-dashboard-header .navbar .navbar-logo {
+  max-height: 40px !important;
+  height: 40px !important;
+  width: auto !important;
+}
+/* Navbar tab effect */
+.quarto-dashboard #quarto-dashboard-header .navbar .navbar-nav .nav-link {
+  color: #243B53 !important;
+  transition: all 0.25s ease;
+}
+
+.quarto-dashboard #quarto-dashboard-header .navbar .navbar-nav .nav-link:hover {
+  color: #176B6B !important;
+}
+
+.quarto-dashboard #quarto-dashboard-header .navbar .navbar-nav .nav-link.active {
+  color: #176B6B !important;
+  border-bottom: 3px solid #D97757;
+}
+.quarto-dashboard #quarto-dashboard-header .navbar .navbar-title a {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+}
+
+.quarto-dashboard #quarto-dashboard-header .navbar .navbar-nav {
+  position: absolute !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+}
+
+
+/* Custom Value Boxes */
+.quarto-dashboard .bslib-value-box {
+  position: relative !important;
+  border: none !important;
+  border-radius: 14px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(36, 59, 83, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quarto-dashboard .bslib-value-box:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 7px 18px rgba(36, 59, 83, 0.14);
+}
+
+/* Title */
+.quarto-dashboard .bslib-value-box .value-box-title {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #243B53 !important;
+}
+
+/* Main value */
+.quarto-dashboard .bslib-value-box .value-box-value {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: #243B53 !important;
+}
+
+/* Force icon to top-right */
+.quarto-dashboard .bslib-value-box .value-box-showcase {
+  position: absolute !important;
+  top: 11px !important;
+  right: 15px !important;
+  left: unset !important;
+  bottom: unset !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  z-index: 10 !important;
+}
+
+.quarto-dashboard .bslib-value-box .value-box-showcase svg {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+
+/* Value Box content spacing */
+.quarto-dashboard .bslib-value-box .value-box-area {
+  padding-top: 0 !important;
+  padding-bottom: 8px !important;
+}
+.quarto-dashboard .bslib-value-box .value-box-title {
+  position: absolute !important;
+  top: 8px !important;
+  left: 16px !important;
+  right: 35px !important;
+  margin: 0 !important;
+}
+
+/* Custom Chart Cards */
+.quarto-dashboard .card {
+  border: 1px solid #DCE5E5 !important;
+  border-radius: 14px !important;
+  overflow: hidden;
+   box-shadow: 0 4px 12px rgba(36, 59, 83, 0.06);
+  transition: box-shadow 0.2s ease;
+}
+
+.quarto-dashboard .card:hover {
+  box-shadow: 0 7px 18px rgba(36, 59, 83, 0.12);
+  border: 1px solid #DCE5E5 !important;
+}
+
+/* Custom Card Titles */
+.quarto-dashboard .card-header {
+  color: #F2EBDD;
+  font-weight: 700;
+  font-size: 15px;
+  background-color: #2C7A7B;
+}
+
+/* Chart Card Body */
+.quarto-dashboard .card:not(.bslib-value-box) > .card-body {
+  background-color: #E6F0EF;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+/* Tabset spacing */
+.quarto-dashboard .panel-tabset {
+  margin-top: 4px;
+  margin-bottom: 24px;
+}
+
+/* Tab navigation */
+.quarto-dashboard .panel-tabset .nav-tabs {
+  border-bottom: 2px solid #B8D8D8;
+  gap: 6px;
+}
+
+/* Individual tabs */
+.quarto-dashboard .panel-tabset .nav-tabs .nav-link {
+  color: #243B53;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  padding: 8px 16px;
+  transition: all 0.2s ease;
+}
+
+/* Hover */
+.quarto-dashboard .panel-tabset .nav-tabs .nav-link:hover {
+  color: #176B6B;
+  background-color: #E6F0EF;
+}
+
+/* Active tab */
+.quarto-dashboard .panel-tabset .nav-tabs .nav-link.active {
+  color: #176B6B;
+  background-color: #FFFFFF;
+  border-bottom: 3px solid #D97757;
+  font-weight: 600;
+}
+
+/* Custom table scrollbar */
+.quarto-dashboard .card-body {
+  scrollbar-width: thin;
+  scrollbar-color: #2C7A7B #E6F0EF;
+}
+
+/* Chrome, Edge, Safari */
+.quarto-dashboard .card-body::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.quarto-dashboard .card-body::-webkit-scrollbar-track {
+  background: #E6F0EF;
+  border-radius: 10px;
+}
+
+.quarto-dashboard .card-body::-webkit-scrollbar-thumb {
+  background: #2C7A7B;
+  border-radius: 10px;
+}
+
+.quarto-dashboard .card-body::-webkit-scrollbar-thumb:hover {
+  background: #176B6B;
+}
+
+
+/* Rank chart tooltip */
+.js-plotly-plot .hoverlayer .hovertext {
+  filter: drop-shadow(0 2px 4px rgba(36, 59, 83, 0.15));
+}
+
+.js-plotly-plot .hoverlayer .hovertext rect {
+  rx: 5px;
+  ry: 5px;
+}
+
+
+
+/* Glass-style vertical Plotly toolbar */
+.js-plotly-plot .modebar {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px;
+  background: rgba(247, 249, 249, 0.55) !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 4px !important;
+  border-radius: 10px !important;
+}
+
+.js-plotly-plot .modebar-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  margin: 0 !important;
+}
+
+.js-plotly-plot .modebar-btn {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #243B53 !important;
+}
+
+.js-plotly-plot .modebar-btn svg path {
+  fill: #243B53 !important;
+}
+
+.js-plotly-plot .modebar-btn:hover {
+  background: rgba(184, 216, 216, 0.3) !important;
+  border-radius: 5px !important;
+}
+
+
+/* Compact Plotly toolbar */
+.js-plotly-plot .modebar {
+  padding: 2px !important;
+  gap: 1px !important;
+}
+
+.js-plotly-plot .modebar-group {
+  padding: 1px !important;
+  margin: 0 !important;
+  gap: 1px !important;
+}
+
+.js-plotly-plot .modebar-btn {
+  padding: 2px !important;
+  margin: 0 !important;
+}
+
+.js-plotly-plot .modebar-btn svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+/* Move Plotly toolbar to the left */
+.js-plotly-plot .modebar-container {
+  left: 0 !important;
+  right: auto !important;
+  transform: none !important;
+}
+
+/* Keep Plotly toolbar horizontal */
+.js-plotly-plot .modebar {
+  flex-direction: row !important;
+}
+
+.js-plotly-plot .modebar-group {
+  flex-direction: row !important;
+}
+
+
+/* Data Sources sidebar */
+.sidebar {
+  background-color: #F7F9F9;
+  color: #243B53;
+  padding: 1.25rem;
+  border-right: 1px solid #B8D8D8;
+}
+
+.sidebar h3 {
+  color: #176B6B;
+  font-weight: 700;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #B8D8D8;
+}
+
+.sidebar strong {
+  color: #243B53;
+}
+
+.sidebar a {
+  color: #176B6B;
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.sidebar a:hover {
+  color: #D97757;
+  text-decoration: underline;
+}
+
+.map-tip {
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.cell:has(.map-tip) {
+  padding: 2px 8px !important;
+  min-height: 0 !important;
+}
+
+.cell:has(.map-tip) .card {
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 2px 8px !important;
+}
+
+
+/* Position social icons on the far right */
+.quarto-dashboard-links {
+  margin-left: auto !important;
+  margin-right: 8px !important;
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Icon styling */
+.quarto-dashboard-links .quarto-dashboard-link {
+  color: #F7F9F9 !important;
+  padding: 6px;
+  border-radius: 6px;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.quarto-dashboard-links .quarto-dashboard-link:hover {
+  color: #D97757 !important;
+  background-color: rgba(184, 216, 216, 0.15);
+}
+
+
+

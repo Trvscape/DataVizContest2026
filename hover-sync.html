@@ -1,0 +1,217 @@
+
+<script>
+window.addEventListener("load", function () {
+  setTimeout(function () {
+    const plots = document.querySelectorAll(".js-plotly-plot");
+    const map = plots[0];
+
+    if (!map) return;
+
+    const countryTraces = map.data
+      .map((trace, index) =>
+        trace.fill === "toself" ? index : -1
+      )
+      .filter(index => index !== -1);
+
+    // Floating country name tag
+    const tag = document.createElement("div");
+    tag.style.cssText = `
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(6px);
+      transition:
+        left 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+        top 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.25s ease,
+        transform 0.25s ease;
+      background: #F7F9F9;
+      color: #243B53;
+      border: 1px solid #B8D8D8;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 3px 12px rgba(36, 59, 83, 0.12);
+      white-space: nowrap;
+    `;
+    document.body.appendChild(tag);
+
+    map.querySelectorAll(".choroplethlayer path, .trace path")
+      .forEach(path => {
+        path.style.transition = "filter 0.3s ease";
+        path.style.cursor = "pointer";
+      });
+
+    function resetMap() {
+      Plotly.restyle(map, { opacity: 1 }, countryTraces);
+
+      map.querySelectorAll(".choroplethlayer path, .trace path")
+        .forEach(path => {
+          path.style.filter = "";
+        });
+
+      tag.style.opacity = "0";
+      tag.style.transform = "translateY(6px)";
+    }
+
+    map.on("plotly_click", function (event) {
+      const point = event.points[0];
+      const selected = point.curveNumber;
+
+      if (!countryTraces.includes(selected)) {
+        resetMap();
+        return;
+      }
+
+      // Dim other countries
+      Plotly.restyle(map, { opacity: 0.3 }, countryTraces);
+      Plotly.restyle(map, { opacity: 1 }, [selected]);
+
+      // Preserve teal glow
+      map.querySelectorAll(".choroplethlayer path, .trace path")
+        .forEach(path => {
+          path.style.filter = "";
+        });
+
+      const selectedTrace = map.querySelectorAll(".trace")[selected];
+
+      if (selectedTrace) {
+        selectedTrace.querySelectorAll("path").forEach(path => {
+          path.style.filter =
+            "brightness(1.2) drop-shadow(0 0 4px rgba(44, 122, 123, 0.55))";
+        });
+      }
+
+      // Read country name and PM2.5 value
+      const trace = map.data[point.curveNumber];
+
+      const rawText =
+        typeof point.text === "string"
+          ? point.text
+          : Array.isArray(trace?.text)
+            ? trace.text[point.pointNumber]
+            : trace?.text;
+
+      const countryName =
+        (typeof rawText === "string"
+          ? rawText.match(/<b>(.*?)<\/b>/i)?.[1]
+          : null) ||
+        trace?.name ||
+        "Unknown country";
+
+      const rawValue =
+        typeof rawText === "string"
+          ? rawText.match(/Average PM2\.5:\s*([\d.]+)/i)?.[1]
+          : null;
+
+      tag.innerHTML = `
+        <div style="font-weight:600;">${countryName}</div>
+        <div style="font-size:12px; color:#2C7A7B; margin-top:3px;">
+          Average PM2.5: ${rawValue ?? "N/A"} µg/m³
+        </div>
+      `;
+      
+      // Move tag smoothly to the latest click
+      const mouseEvent = event.event;
+
+      if (mouseEvent && mouseEvent.clientX != null) {
+        tag.style.left = (mouseEvent.clientX + 14) + "px";
+        tag.style.top = (mouseEvent.clientY + 14) + "px";
+      }
+
+      tag.style.opacity = "1";
+      tag.style.transform = "translateY(0)";
+    });
+
+    document.addEventListener("click", function (event) {
+      if (!map.contains(event.target)) {
+        resetMap();
+      }
+    });
+    
+    
+
+    // Hover glow for Top 24 and Bottom 24
+    const rankCharts = Array.from(
+      document.querySelectorAll(".js-plotly-plot")
+    ).filter(chart =>
+      chart !== map &&
+      chart.data?.some(trace =>
+        trace.type === "bar" &&
+        trace.ids?.length
+      )
+    );
+
+    rankCharts.forEach(chart => {
+      let activeBar = null;
+
+      chart.on("plotly_hover", function (event) {
+        const point = event.points?.[0];
+        if (!point) return;
+
+        // Remove previous glow
+        if (activeBar) {
+          activeBar.style.filter = "";
+          activeBar = null;
+        }
+
+        // Highlight hovered bar
+        const traces = chart.querySelectorAll(".barlayer .trace");
+        const paths = traces[point.curveNumber]?.querySelectorAll("path");
+        const bar = paths?.[point.pointNumber];
+
+ if (bar) {
+          activeBar = bar;
+          bar.style.transition = "filter 0.2s ease";
+          bar.style.filter =
+            "brightness(1.12) drop-shadow(0 0 5px rgba(44, 122, 123, 0.65))";
+        }
+      });
+
+      chart.on("plotly_unhover", function () {
+        if (activeBar) {
+          activeBar.style.filter = "";
+          activeBar = null;
+        }
+      });
+    });
+
+
+    // Exposure chart: isolated SVG hover effect
+    const exposureContainer = document.querySelector("#exposure-chart");
+
+    if (exposureContainer) {
+      const exposureSvg = exposureContainer.querySelector("svg");
+
+      if (exposureSvg) {
+        const exposurePoints = exposureSvg.querySelectorAll(
+          ".geom_point circle, circle"
+        );
+
+        exposurePoints.forEach((point, index) => {
+          point.style.cursor = "pointer";
+          point.style.transition =
+            "r 0.18s ease, filter 0.18s ease";
+
+          point.addEventListener("mouseenter", () => {
+            point.style.filter =
+              "drop-shadow(0 0 5px rgba(44, 122, 123, 0.85))";
+            point.style.transform = "scale(1.8)";
+            point.style.transformBox = "fill-box";
+            point.style.transformOrigin = "center";
+          });
+
+          point.addEventListener("mouseleave", () => {
+            point.style.filter = "";
+            point.style.transform = "";
+          });
+        });
+      }
+    }
+
+
+  }, 2000);
+});
+</script>

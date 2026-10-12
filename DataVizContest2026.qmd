@@ -1,0 +1,1808 @@
+---
+title: "PM2.5 Pollution Dashboard"
+format:
+  dashboard:
+    theme: cosmo
+    logo: "Ŧɍνѕсɑρє_logo_trial1.png"
+    orientation: columns
+    css: styles.css
+    include-after-body: hover-sync.html
+    navbar:
+      background: "#176B6B"
+    nav-buttons:
+      - icon: linkedin
+        href: "https://www.linkedin.com/in/thinh-nguyen-2541623b6/"
+        aria-label: LinkedIn
+      - icon: github
+        href: "https://github.com/Trvscape"
+        aria-label: GitHub
+---
+
+```{r library packages}
+library(tidyverse)
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(gt)
+library(treemap)
+library(scales)
+library(ggfittext)
+library(ggtext)
+library(fmsb)
+library(plotly)
+library(ggrepel)
+```
+
+
+```{r Import Data}
+A <- read_csv("A.csv")
+B <- read_csv("B.csv")
+C <- read_csv("C.csv")
+```
+
+
+```{r Data B Exposure Preparation }
+B_Most_Exposure <- B |> 
+  filter(PM2.5_Annual_Exposure == max(PM2.5_Annual_Exposure, na.rm = TRUE)) |>
+  slice(1)
+B_Least_Exposure <- B |> 
+  filter(PM2.5_Annual_Exposure == min(PM2.5_Annual_Exposure, na.rm = TRUE)) |>
+  slice(1)
+B_Average_Exposure <- B |> 
+  summarise(mean(PM2.5_Annual_Exposure, na.rm = TRUE)) |>
+  pull()
+period <- B |> 
+  mutate(
+    period = case_when(
+      Year >= 1990 & Year <= 1999 ~ "1990 - 1999",
+       Year >= 2000 & Year <= 2009 ~ "2000 - 2009",
+       Year >= 2010 & Year <= 2019 ~ "2010 - 2019",
+       Year >= 2020 & Year <= 2023 ~ "2020 - 2023"
+    )
+  )
+mean_period <-   period |> 
+  filter(Income_Level != "..") |> 
+  group_by(period, Income_Level) |> 
+  summarise(mean_PM2.5_AnnualExposure = mean(PM2.5_Annual_Exposure, na.rm = TRUE),
+            .groups = "drop")
+```
+
+```{r Smooth Annual Exposure Chart Creation}
+#| title: "PM2.5 air pollution annual exposure"
+p_exposure <- B |> 
+  group_by(Year) |> 
+  summarise(
+    Average_PM2.5_Exposure = mean(
+      PM2.5_Annual_Exposure,
+      na.rm = TRUE
+    )
+  ) |> 
+  ggplot(aes(
+    x = Year,
+    y = Average_PM2.5_Exposure
+    )
+  ) +
+  geom_point(
+    size = 1.5,
+    color = "#2C7A7B"
+  ) +
+  geom_smooth(
+    method = "lm",
+    se = FALSE,
+    linetype = "dashed",
+    linewidth = 0.8,
+    color = "#D97757"
+  ) +
+  labs(
+    title = "Population-Weighted PM2.5 Exposure",
+    subtitle = "Mean population-weighted exposure across ADB developing member economies, 1990–2023",
+    x = NULL,
+    y = "PM2.5\n(µg/m³)"
+  ) +
+  theme_minimal(base_size = 11.5) +
+  theme(
+    plot.title = element_text(
+      size = 18,
+      face = "bold",
+      color = "#243B53"
+    ),
+    plot.subtitle = element_text(
+      size = 10,
+      color = "#627D98"
+    ),
+    axis.title.y = element_text(
+      size = 10,
+      color = "#486581",
+      face = "bold",
+      angle = 0,
+      vjust = 0.5,
+      hjust = 0.5,
+      lineheight = 0.9,
+      margin = margin(r = 10)
+    ),
+    axis.text = element_text(
+      size = 9.5,
+      color = "#486581"
+    ),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(
+      color = "#D9E2EC",
+      linewidth = 0.4
+    ),
+    panel.background = element_rect(
+      fill = "#FCFDFD",
+      colour = NA
+    ),
+    plot.background = element_rect(
+      fill = "#FCFDFD",
+      colour = NA
+    ),
+    plot.margin = margin(10, 10, 10, 2)
+  )
+```
+
+```{r Heatmap Annual Exposure Chart Creation}
+#| title: PM2.5 Exposure by Income Level
+#| fig-width: 10
+#| fig-height: 8
+mean_period$Income_Level <- factor(mean_period$Income_Level, levels = c("L", "LM", "UM", "H"))
+p_heatmap <-  mean_period |> 
+  ggplot(
+    aes(x = period, y = Income_Level, 
+        fill = mean_PM2.5_AnnualExposure,
+      text = paste0(
+        "Period: ", period,
+        "<br>Income level: ", Income_Level,
+        "<br>PM2.5 exposure: ",
+        round(mean_PM2.5_AnnualExposure, 1), " µg/m³"
+      )
+        )
+  ) + 
+  geom_tile(
+    color = "#F7F9F9",
+    linewidth = 1.5
+  ) +
+  coord_fixed() +
+  scale_fill_gradient(
+    low = "#B8D8D8",
+    high = "#176B6B",
+    name = "PM2.5\n(µg/m³)"
+  ) + 
+  geom_text(
+    aes(label = round(mean_PM2.5_AnnualExposure, 1)),
+    color = "#334E68",
+    size = 8,
+    fontface = "bold") + 
+   labs(
+    title = "PM2.5 Exposure Heatmap",
+    subtitle = "Mean population-weighted PM2.5 exposure by income level and period",
+    x = NULL,
+    y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(
+      size = 20,
+      face = "bold",
+      color = "#243B53"
+    ),
+    plot.subtitle = element_text(
+      size = 14,
+      color = "#2C7A7B",
+      margin = margin(b = 15)
+    ),
+    
+    axis.text.x = element_text(
+      color = "#243B53",
+      face = "bold",
+      size = 12
+    ),
+    
+    axis.text.y = element_text(
+      color = "#243B53",
+      face = "bold",
+      size = 12
+    ),
+    
+    legend.title = element_text(
+      color = "#243B53",
+      face = "bold"
+    ),
+    
+    legend.text = element_text(
+      color = "#243B53"
+    ),
+    panel.background = element_rect(fill = "#FCFDFD", colour = NA),
+  plot.background  = element_rect(fill = "#FCFDFD", colour = NA),
+    
+    panel.grid = element_blank(),
+    
+    plot.margin = margin(10, 5, 10, 5)
+  )
+```
+
+```{r BarChart Annual Exposure Chart Creation}
+p_bar <-  period |> 
+  filter(!is.na(PM2.5_Annual_Exposure), !is.na(Subregion)) |> 
+  group_by(Subregion, period) |> 
+  summarise(
+    mean_PM2.5 = mean(PM2.5_Annual_Exposure),
+    .groups = "drop"
+  ) |> 
+  ggplot(aes(x = period, y = mean_PM2.5, fill = Subregion)) + 
+  geom_col(position = position_dodge(width = 0.8),
+           width = 0.7) + 
+  scale_fill_manual(
+    values = c(
+      "#176B6B",
+    "#2C7A7B",
+    "#4F8F8F",
+    "#7FA9A9",
+    "#B8D8D8",
+    "#D97757"
+    ),
+    labels = \(x) stringr::str_wrap(x, width = 22)
+  ) +
+  labs(
+    title = "PM2.5 Exposure Grouped Bar Chart",
+    subtitle = "Mean population-weighted PM2.5 exposure across 6 ADB subregions",
+    x = NULL,
+    y = "PM2.5\n(µg/m³)",
+    fill = "Subregion"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.background = element_rect(fill = "#FCFDFD", colour = NA),
+  plot.background  = element_rect(fill = "#FCFDFD", colour = NA),
+    plot.title = element_text(
+      size = 20,
+      face = "bold",
+      color = "#243B53"
+    ),
+    plot.subtitle = element_text(
+      size = 14,
+      color = "#2C7A7B",
+      margin = margin(b = 15)
+    ),
+    axis.text.x = element_text(
+      color = "#243B53",
+      face = "bold",
+      size = 12
+    ),
+    axis.text.y = element_text(
+      color = "#243B53"
+    ),
+    axis.title.y = element_text(
+      color = "#243B53",
+      face = "bold",
+      margin = margin(r = 12),
+       angle = 0,
+      vjust = 0.5,
+  hjust = 0.5,
+      lineheight = 0.9
+    ),
+    legend.title = element_text(
+      color = "#243B53",
+      face = "bold",
+      size = 16
+    ),
+    legend.text = element_text(
+      color = "#243B53",
+      size = 14
+    ),
+   legend.key.size = unit(0.8, "cm"),
+  legend.spacing.x = unit(5, "pt"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(
+      color = "#D9E2EC",
+      linewidth = 0.4
+    ),
+    plot.margin = margin(10, 5, 10, 5)
+  ) + 
+  guides(
+    fill = guide_legend(
+      ncol = 1,
+      byrow = TRUE
+    )
+  )
+```
+
+```{r B - Table Creation}
+B_Table <- head(B, 100) |>
+  gt() |>
+  tab_header(
+    title = md("**PM2.5 Annual Exposure Dataset**"),
+    subtitle = "Asian Development Bank Economies · 1990–2023"
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#B8D8D8"),
+    locations = cells_body(
+      columns = c(Economy_code, Country, Year)
+    )
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#FDE8E2"),
+    locations = cells_body(
+      columns = PM2.5_Annual_Exposure
+    )
+  ) |>
+  tab_style(
+    style = list(
+      cell_fill(color = "#243B53"),
+      cell_text(color = "#FFFFFF", weight = "bold")
+    ),
+    locations = cells_body(
+      columns = Income_Level
+    )
+  ) |>
+  tab_options(
+    table.font.size = px(12),
+    heading.background.color = "#176B6B",
+    heading.title.font.size = px(20),
+    heading.title.font.weight = "bold",
+    heading.subtitle.font.size = px(12),
+    column_labels.background.color = "#2C7A7B",
+    table.border.top.color = "#176B6B",
+    table.border.bottom.color = "#176B6B",
+    row.striping.background_color = "#F7F9F9"
+  )
+```
+
+
+```{r Data C Concentration Preparation}
+C_Total <- C |> 
+  filter(!is.na(Total_Concentration_PM2.5)) |> 
+  group_by(Economy_code, Country) |> 
+  summarise(Average_TotalPM2.5_Concentration = mean(Total_Concentration_PM2.5,
+                                                  na.rm = TRUE),
+            .groups = "drop")
+
+world <- ne_countries(
+  scale = "medium",
+  returnclass = "sf"
+)
+
+C_map_Total <- world |> 
+  left_join(
+    C_Total,
+    by = c("iso_a3" = "Economy_code")
+  )
+
+C_top24 <-  C_Total |> 
+  arrange(desc(Average_TotalPM2.5_Concentration)) |> 
+  slice (1:24)
+
+C_bottom24 <-  C_Total |> 
+  arrange((Average_TotalPM2.5_Concentration)) |> 
+  slice (1:24)
+
+C_dropNA <-  C |> 
+  drop_na(Total_Concentration_PM2.5, Urban_Concentration_PM2.5, Rural_Concentration_PM2.5, Income_Level, Subregion)
+
+C_2019 <- C_dropNA |> 
+  filter(year == 2019)
+
+C_lollipop <-  C_2019 |> 
+  group_by(Subregion) |> 
+  summarise(mean_Rural_Concentration_PM2.5 = mean(Rural_Concentration_PM2.5),
+            mean_Urban_Concentration_PM2.5 = 
+              mean(Urban_Concentration_PM2.5))
+
+C_lollipop_long <- C_lollipop |> 
+  pivot_longer(
+    cols = c(
+      mean_Rural_Concentration_PM2.5,
+      mean_Urban_Concentration_PM2.5
+    ),
+    names_to = "Type",
+    values_to = "Concentration"
+  ) |> 
+  mutate(
+    Type = case_when(
+      Type == "mean_Rural_Concentration_PM2.5" ~ "Rural",
+      Type == "mean_Urban_Concentration_PM2.5" ~ "Urban"
+    )
+  )
+
+C_dropNA <-  C |> 
+  drop_na(Total_Concentration_PM2.5, Urban_Concentration_PM2.5, Rural_Concentration_PM2.5, Income_Level, Subregion)
+
+C_color <-  C_dropNA |>
+  filter(year == 2019) |> 
+  mutate(
+    Disparity = abs(
+      Urban_Concentration_PM2.5 - Rural_Concentration_PM2.5
+    )
+  ) |> 
+  select(-c(Country, Total_Concentration_PM2.5, year, Subregion)) |> 
+  relocate(Disparity, .after = "Economy_code")
+```
+
+```{r World Map Total Concentration Chart Creation}
+p_map <-  ggplot(C_map_Total) +
+  geom_sf(
+    aes(
+      key = Country,
+      fill = Average_TotalPM2.5_Concentration,
+      text = paste0(
+  "<b>", Country, "</b>",
+  "<br>Average PM2.5: ",
+  round(Average_TotalPM2.5_Concentration, 2),
+  " µg/m³"
+)
+        ),
+    colour = "white",
+    linewidth = 0.2
+  ) +
+  
+  scale_fill_gradientn(
+    colours = c(
+      "#B8D8D8",
+      "#9CCBCB",
+      "#80BDBD",
+      "#64AEAE",
+      "#4A9A9A",
+      "#2C7A7B",
+      "#256B70",
+      "#243B53"
+    ),
+    values = scales::rescale(c(0, 10, 20, 30, 40, 50, 60, 70)),
+    limits = c(0, 70),
+    name = "Average PM2.5\nconcentration",
+    na.value = "#AFC4CC"
+  ) +
+  
+  coord_sf(
+    xlim = c(20, 200),
+    ylim = c(-60, 85),
+    expand = FALSE
+  ) +
+  
+  theme_void() +
+  
+  theme(
+     # OCEAN
+  panel.background = element_rect(
+    fill = "#D9E3E8",
+    colour = NA
+  ),
+    legend.position = "right",
+    legend.title = element_text(
+      size = 8,
+      colour = "#243B53"
+    ),
+    legend.text = element_text(size = 7),
+     legend.key.height = unit(0.8, "cm"),
+  legend.key.width = unit(0.35, "cm"),
+
+  legend.spacing = unit(2, "pt"),
+    plot.margin = margin(5, 5, 5, 5)
+  )
+p_map_plotly <- ggplotly(p_map, tooltip = "text") |> 
+   layout(
+    hoverlabel = list(
+      bgcolor = "#F7F9F9",
+      bordercolor = "#B8D8D8",
+      font = list(
+        family = "Arial",
+        size = 6,
+        color = "#243B53"
+      ),
+      namelength = 0
+    )
+  )
+
+for (i in seq_along(p_map_plotly$x$data)) {
+  if (!is.null(p_map_plotly$x$data[[i]]$fill)) {
+    p_map_plotly$x$data[[i]]$hoveron <- "fills"
+  }
+}
+```
+
+```{r Top 24 Rank Total Concentration Chart Creation}
+p_top <-  ggplot(
+  C_top24,
+  aes(
+    key = Country,
+    ids = Country,
+    x = Average_TotalPM2.5_Concentration,
+    y = reorder(Country, Average_TotalPM2.5_Concentration),
+    fill = Average_TotalPM2.5_Concentration,
+    text = paste0(
+      "<b>", Country, "</b>",
+      "<br>PM2.5: ",
+      round(Average_TotalPM2.5_Concentration, 2),
+      " µg/m³"
+    )
+  )
+) +
+  geom_col(width = 0.7) +
+  scale_fill_gradientn(
+  colours = c(
+    "#B8D8D8",
+  "#9CCBCB",
+  "#80BDBD",
+  "#64AEAE",
+  "#4A9A9A",
+  "#2C7A7B",
+  "#256B70",
+  "#243B53"
+  ),
+  values = scales::rescale(c(0, 15, 30, 45, 70)),
+  limits = c(0, 70),
+  name = "PM2.5\n(µg/m³)"
+) +
+  scale_x_continuous(
+    limits = c(0, 70),
+    breaks = seq(0, 70, 14)
+  ) + 
+  scale_y_discrete(
+  labels = \(x) stringr::str_wrap(x, width = 18)
+) +
+  labs(
+    x = "PM2.5\n(µg/m³)",
+    y = NULL
+  ) +
+ theme_minimal(base_size = 11) +
+
+  theme(
+    panel.background = element_rect(fill = "#FCFDFD", colour = NA),
+  plot.background  = element_rect(fill = "#FCFDFD", colour = NA),
+    # Country labels
+    axis.text.y = element_text(
+      size = 30,
+      colour = "#243B53",
+      face = "bold",
+      margin = margin(r = 4),
+      lineheight = 0.85
+    ),
+
+    # X axis
+    axis.text.x = element_text(
+      size = 30,
+      colour = "#243B53"
+    ),
+
+    axis.title.x = element_text(
+      size = 30,
+      colour = "#243B53",
+      margin = margin(t = 10)
+    ),
+
+    # Grid
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_line(
+      colour = "#E5EAEA",
+      linewidth = 0.4
+    ),
+
+    # Legend
+    legend.title = element_text(
+      size = 30,
+      colour = "#243B53"
+    ),
+    legend.text = element_text(size = 24,
+                               color = "#243B53"),
+    legend.key.height = unit(2, "cm"),
+  legend.key.width = unit(0.5, "cm"),
+
+    # Plot spacing
+    plot.margin = margin(5, 2, 5, 0)
+  )
+p_top_plotly <- ggplotly(p_top, tooltip = "text") |>
+  layout(
+    hoverlabel = list(
+      bgcolor = "#F7F9F9",
+      bordercolor = "#B8D8D8",
+      font = list(
+        family = "Arial",
+        size = 13,
+        color = "#243B53"
+      ),
+      namelength = 0
+    ),
+    
+    autosize = TRUE,
+    margin = list(l = 100, r = 40, t = 20, b = 60),
+    xaxis = list(
+      tickfont = list(size = 10),
+      title = list(font = list(size = 9))
+    ),
+    yaxis = list(
+      tickfont = list(size = 10),
+      title = list(font = list(size = 9))
+    )
+  )
+
+p_top_plotly <- plotly_build(p_top_plotly)
+
+for (i in seq_along(p_top_plotly$x$data)) {
+  cb <- p_top_plotly$x$data[[i]]$marker$colorbar
+
+  if (!is.null(cb)) {
+    p_top_plotly$x$data[[i]]$marker$colorbar$tickfont <-
+      list(size = 8)
+
+    p_top_plotly$x$data[[i]]$marker$colorbar$titlefont <-
+      list(size = 9)
+
+    p_top_plotly$x$data[[i]]$marker$colorbar$thickness <- 15
+    p_top_plotly$x$data[[i]]$marker$colorbar$len <- 0.7
+  }
+}
+
+```
+
+```{r Bottom 24 Rank Total Concentration Chart Creation}
+p_bottom <- ggplot(
+  C_bottom24,
+  aes(
+    key = Country,
+    ids = Country,
+    x = Average_TotalPM2.5_Concentration,
+    y = reorder(Country, Average_TotalPM2.5_Concentration),
+    fill = Average_TotalPM2.5_Concentration,
+    text = paste0(
+      "<b>", Country, "</b>",
+      "<br>PM2.5: ",
+      round(Average_TotalPM2.5_Concentration, 2),
+      " µg/m³"
+    )
+  )
+) +
+  geom_col(width = 0.7) +
+  scale_fill_gradientn(
+  colours = c(
+     "#B8D8D8",
+  "#9CCBCB",
+  "#80BDBD",
+  "#64AEAE",
+  "#4A9A9A",
+  "#2C7A7B",
+  "#256B70",
+  "#243B53"
+  ),
+  values = scales::rescale(c(0, 15, 30, 45, 70)),
+  limits = c(0, 70),
+  name = "PM2.5\n(µg/m³)"
+) +
+  scale_x_continuous(
+    limits = c(0, 70),
+    breaks = seq(0, 70, 14)
+  ) +
+  scale_y_discrete(
+  labels = \(x) stringr::str_wrap(x, width = 18)
+) +
+  labs(
+    x = "PM2.5\n(µg/m³)",
+    y = NULL
+  ) +
+  theme_minimal(base_size = 11) +
+
+  theme(
+    panel.background = element_rect(fill = "#FCFDFD", colour = NA),
+  plot.background  = element_rect(fill = "#FCFDFD", colour = NA),
+    # Country labels
+    axis.text.y = element_text(
+      size = 30,
+      colour = "#243B53",
+      face = "bold",
+      margin = margin(r = 4),
+      lineheight = 0.85
+    ),
+
+    # X axis
+    axis.text.x = element_text(
+      size = 30,
+      colour = "#243B53"
+    ),
+
+    axis.title.x = element_text(
+      size = 30,
+      colour = "#243B53",
+      margin = margin(t = 10)
+    ),
+
+    # Grid
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_line(
+      colour = "#E5EAEA",
+      linewidth = 0.4
+    ),
+
+    # Legend
+    legend.title = element_text(
+      size = 30,
+      colour = "#243B53"
+    ),
+    legend.text = element_text(size = 24,
+                               colour = "#243B53"),
+    legend.key.height = unit(2, "cm"),
+    legend.key.width = unit(0.5, "cm"),
+
+    # Plot spacing
+    plot.margin = margin(5, 2, 5, 0)
+  )
+p_bottom_plotly <- ggplotly(p_bottom, tooltip = "text") |>
+  layout(
+    hoverlabel = list(
+      bgcolor = "#F7F9F9",
+      bordercolor = "#B8D8D8",
+      font = list(
+        family = "Arial",
+        size = 13,
+        color = "#243B53"
+      ),
+      namelength = 0
+    ),
+    
+    autosize = TRUE,
+    margin = list(l = 100, r = 40, t = 20, b = 60),
+    xaxis = list(
+      tickfont = list(size = 10),
+      title = list(font = list(size = 9))
+    ),
+    yaxis = list(
+      tickfont = list(size = 10),
+      title = list(font = list(size = 9))
+    )
+  )
+
+p_bottom_plotly <- plotly_build(p_bottom_plotly)
+
+for (i in seq_along(p_bottom_plotly$x$data)) {
+  cb <- p_bottom_plotly$x$data[[i]]$marker$colorbar
+
+  if (!is.null(cb)) {
+    p_bottom_plotly$x$data[[i]]$marker$colorbar$tickfont <-
+      list(size = 8)
+
+    p_bottom_plotly$x$data[[i]]$marker$colorbar$titlefont <-
+      list(size = 9)
+
+    p_bottom_plotly$x$data[[i]]$marker$colorbar$thickness <- 15
+    p_bottom_plotly$x$data[[i]]$marker$colorbar$len <- 0.7
+  }
+}
+```
+
+```{r Lollipop Urban vs Rural Chart Creation}
+p_lollipop <- ggplot(data = C_lollipop, aes(y = Subregion)) +
+  
+  geom_segment(
+    aes(
+      x = mean_Rural_Concentration_PM2.5,
+      xend = mean_Urban_Concentration_PM2.5,
+      yend = Subregion
+    ),
+    linewidth = 1,
+    color = "#B8D8D8"
+  ) +
+  
+  geom_point(
+    data = C_lollipop_long,
+    aes(
+      x = Concentration,
+      color = Type
+    ),
+    size = 2
+  ) +
+  
+  scale_color_manual(
+    name = NULL,
+    values = c(
+      "Rural" = "#176B6B",
+      "Urban" = "#D97757"
+    )
+  ) +
+  
+  labs(
+    title = "PM2.5 Concentration Lollipop Chart",
+    subtitle = "Average PM2.5 concentration across Asian & Pacific subregions in 2019",
+    x = "PM2.5 (µg/m³)",
+    y = NULL
+  ) +
+  
+  scale_y_discrete(
+  labels = \(x) stringr::str_wrap(x, width = 18)
+) +
+  
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.background = element_rect(fill = "#FCFDFD", colour = NA),
+  plot.background  = element_rect(fill = "#FCFDFD", colour = NA),
+    plot.title = element_text(
+      face = "bold",
+      size = 14,
+      color = "#243B53"
+    ),
+    plot.subtitle = element_text(color = "#5F6C7B",
+                                 size = 10),
+    
+    axis.text.y = element_text(
+      color = "#243B53",
+      face = "bold",
+      size = 6,
+  hjust = 1,
+  lineheight = 0.9
+  
+    ),
+    axis.text.x = element_text(color = "#5F6C7B"),
+    
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    
+    panel.grid.major.x = element_line(
+      color = "#E5EAEA",
+      linewidth = 0.4
+    ),
+    
+    legend.position = "top",
+    legend.text = element_text(
+      color = "#243B53",
+      face = "bold"
+    )
+  )
+```
+
+```{r Bubble Urban vs Rural Chart Creation}
+p_bubble <-  C_dropNA |>
+  filter(year == 2019) |> 
+  mutate(
+    Disparity = abs(
+      Urban_Concentration_PM2.5 - Rural_Concentration_PM2.5
+    )
+  ) |> 
+  ggplot(
+    aes(
+      x = Rural_Concentration_PM2.5,
+      y = Urban_Concentration_PM2.5,
+      size = Disparity,
+      colour = Income_Level
+    )
+  ) +
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    linetype = "dashed",
+    linewidth = 0.9,
+    colour = "#D46F52"
+  ) +
+  geom_point(alpha = 0.75) +
+  
+  scale_size_continuous(
+    range = c(3, 12),
+    name = "Disparity"
+  ) +
+  
+  scale_colour_manual(
+    values = c(
+    "L"  = "#D97757",  
+    "LM" = "#D9A441",  
+    "UM" = "#8FC8C2",  
+    "H"  = "#AAB8C8"   
+    ),
+    name = "Income Level"
+  ) +
+  
+  labs(
+    x = "Rural (µg/m³)",
+    y = "Urban (µg/m³)"
+  ) +
+  
+  theme_minimal() +
+  theme(
+    panel.background = element_rect(fill = "#FCFDFD", colour = NA),
+  plot.background  = element_rect(fill = "#FCFDFD", colour = NA),
+    panel.grid.minor = element_blank(),
+    legend.position = "right"
+  ) +
+theme(
+  axis.text.x = element_text(
+    size = 16,
+    color = "#243B53"
+  ),
+  axis.text.y = element_text(
+    size = 16,
+    color = "#243B53"
+  ),
+  
+  axis.title.x = element_text(
+    size = 18,
+    color = "#243B53",
+    face = "bold",
+    margin = margin(t = 10)
+  ),
+  axis.title.y = element_text(
+    size = 18,
+    color = "#243B53",
+    face = "bold",
+    margin = margin(r = 10)
+  ),
+  
+  legend.title = element_text(
+    size = 16,
+    color = "#243B53",
+    face = "bold"
+  ),
+  legend.text = element_text(
+    size = 15,
+    color = "#243B53"
+  ),
+  
+  legend.key = element_blank(),
+  legend.spacing.y = unit(8, "pt"),
+  
+  panel.grid.minor = element_blank(),
+  
+  legend.position = "right"
+) +
+  guides(
+  colour = guide_legend(
+    override.aes = list(
+      size = 5,
+      alpha = 1
+    )
+  )
+) + 
+  guides(
+  size = "none",
+  colour = guide_legend(
+    override.aes = list(size = 5, alpha = 1)
+  )
+)
+```
+
+```{r Colored Table Disparity Creation}
+p_table <-  C_color |>
+  arrange(desc(Disparity)) |>
+  gt() |>
+  cols_label(
+    Urban_Concentration_PM2.5 = "Urban",
+    Rural_Concentration_PM2.5 = "Rural",
+    Income_Level = "Income"
+  ) |> 
+  cols_align(
+  align = "center",
+  columns = everything()
+) |> 
+
+  # Income Level
+  tab_style(
+    style = cell_fill(color = "#B8D8D8"),
+    locations = cells_body(
+      columns = Income_Level,
+      rows = Income_Level == "L"
+    )
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#A9D6E5"),
+    locations = cells_body(
+      columns = Income_Level,
+      rows = Income_Level == "LM"
+    )
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#7FB3C8"),
+    locations = cells_body(
+      columns = Income_Level,
+      rows = Income_Level == "UM"
+    )
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#6F8FA8"),
+    locations = cells_body(
+      columns = Income_Level,
+      rows = Income_Level == "H"
+    )
+  ) |>
+
+  # Disparity
+  data_color(
+    columns = Disparity,
+    colors = scales::col_numeric(
+      palette = c("#DDECEC", "#176B6B"),
+      domain = range(C_color$Disparity, na.rm = TRUE)
+    )
+  ) |>
+
+  # Urban
+  data_color(
+    columns = Urban_Concentration_PM2.5,
+    colors = scales::col_numeric(
+      palette = c("#F5E1D9", "#D97757"),
+      domain = range(
+        C_color$Urban_Concentration_PM2.5,
+        na.rm = TRUE
+      )
+    )
+  ) |>
+
+  # Rural
+  data_color(
+    columns = Rural_Concentration_PM2.5,
+    colors = scales::col_numeric(
+      palette = c("#F3DED5", "#C45D48"),
+      domain = range(
+        C_color$Rural_Concentration_PM2.5,
+        na.rm = TRUE
+      )
+    )
+  ) 
+```
+
+```{r C - Table Creation}
+C_Table <- head(C, 100) |>
+  gt() |>
+  tab_header(
+    title = md("**PM2.5 Concentration Dataset**"),
+    subtitle = "Asian and Pacific Economies · 2010–2019"
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#B8D8D8"),
+    locations = cells_body(
+      columns = c(Economy_code, Country, year)
+    )
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#FDE8E2"),
+    locations = cells_body(
+      columns = Total_Concentration_PM2.5
+    )
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#E8F3F3"),
+    locations = cells_body(
+      columns = c(
+        Urban_Concentration_PM2.5,
+        Rural_Concentration_PM2.5
+      )
+    )
+  ) |>
+  tab_style(
+    style = list(
+      cell_fill(color = "#243B53"),
+      cell_text(color = "#FFFFFF", weight = "bold")
+    ),
+    locations = cells_body(
+      columns = c(Income_Level, Subregion)
+    )
+  ) |>
+  tab_options(
+    table.font.size = px(12),
+    heading.background.color = "#176B6B",
+    heading.title.font.size = px(20),
+    heading.title.font.weight = "bold",
+    heading.subtitle.font.size = px(12),
+    column_labels.background.color = "#2C7A7B",
+    table.border.top.color = "#176B6B",
+    table.border.bottom.color = "#176B6B",
+    row.striping.background_color = "#F7F9F9"
+  )
+```
+
+
+```{r Data A Emissions Preparation}
+#| echo: false
+#| output: false
+Income_2022 <- A |> 
+  filter(year == 2022) |> 
+  select(Economy_code, Income_Level)
+
+Income_add <- income_fix <- tibble(
+  Economy_code = c("CHN", "HKG", "IRN", "KOR", "LAO", "TWN"),
+  Income_Level = c("UM", "H", "UM", "H", "LM", "H")
+)
+
+A_tree <-  A |> 
+  filter(!Economy_code %in% c("FSM", "NRU")) |> 
+  group_by(Economy_code, Country) |> 
+  summarise(
+    Total_PM2.5 = sum(Total_PM2.5_emissions, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  left_join(Income_2022, by = "Economy_code") |> 
+  mutate(
+    Income_Level = case_when(
+      Economy_code %in% Income_add$Economy_code ~
+        Income_add$Income_Level[
+          match(Economy_code, Income_add$Economy_code)
+        ],
+      TRUE ~ Income_Level
+    )
+  ) 
+
+A_tree <- A_tree |> 
+  arrange(desc(Total_PM2.5)) |> 
+  mutate(id_tree = row_number())
+
+data_tree <- treemap(
+  A_tree,
+  index = c("Country"),
+  vSize = "Total_PM2.5",
+  type = "categorical",
+  vColor = "Income_Level",
+  algorithm = "pivotSize",
+  sortID = "id_tree",
+  mirror.y = TRUE,
+  mirror.x = TRUE,
+  border.lwds = 0.7,
+  aspRatio = 5/3
+)
+
+data_ggplot <- data_tree[["tm"]] |> 
+  as_tibble() |> 
+  arrange(desc(vSize)) |> 
+  mutate(
+    rank = row_number(),
+    xmax = x0 + w,
+    ymax = y0 + h,
+    label_country = str_glue(
+      "{Country}\n({comma(vSize, accuracy = 1)})"
+    )
+  )
+
+A_dropNA <- A |> 
+  drop_na(Road_PM2.5_emissions,
+    Railways_PM2.5_emissions,
+    Navigation_PM2.5_emissions,
+    Aviation_PM2.5_emissions)
+
+A_4mode <- A_dropNA |> 
+  select(- Total_PM2.5_emissions) |> 
+  pivot_longer(
+    cols = c(
+      Road_PM2.5_emissions,
+      Railways_PM2.5_emissions,
+      Navigation_PM2.5_emissions,
+      Aviation_PM2.5_emissions
+  ),
+  names_to = "Transport_Mode",
+  values_to = "PM2.5_Emissions" )
+
+A_share <-  A_4mode |> 
+  group_by(Transport_Mode) |> 
+  summarise(
+    Total_emissions = sum(PM2.5_Emissions, na.rm = TRUE),
+    .groups = "drop"
+  ) |> 
+  mutate(
+    share = Total_emissions/ sum(Total_emissions)
+  ) |> 
+  mutate(
+    share_percent = formattable::percent(share)
+  )
+
+A_spider <- A_share |> 
+  select(Transport_Mode, share) |> 
+  pivot_wider(
+    names_from = Transport_Mode,
+    values_from = share
+  )
+
+A_spider_chart <- rbind(
+  rep(0.6, 4),  # max = 50%
+  rep(0, 4),    # min = 0%
+  A_spider
+)
+
+colnames(A_spider_chart) <- c(
+  "Aviation",
+  "Navigation",
+  "Railways",
+  "Road"
+)
+
+A_Percent <-  A_dropNA |> 
+  filter(!is.na(Subregion)) |> 
+  group_by(Subregion) |> 
+  summarise(
+    sum_Total_PM2.5Emissions = sum(
+      Total_PM2.5_emissions,
+      na.rm = TRUE
+    ),
+    .groups = "drop"
+  ) |> 
+  mutate(
+    Total_percent = sum_Total_PM2.5Emissions /
+      sum(sum_Total_PM2.5Emissions)
+  )
+
+A_Percent <- A_Percent |> 
+  mutate(
+    Region = case_when(
+      Subregion %in% c(
+        "Developing Southeast Asia",
+        "Caucasus and Central and West Asia"
+      ) ~ "Other Asia",
+      TRUE ~ Subregion
+    )
+  ) |> 
+  group_by(Region) |> 
+  summarise(
+    sum_Total_PM2.5Emissions = sum(
+      sum_Total_PM2.5Emissions
+    ),
+    .groups = "drop"
+  ) |> 
+  mutate(
+    Total_percent = sum_Total_PM2.5Emissions /
+      sum(sum_Total_PM2.5Emissions)
+  )
+
+A_radial <- A_Percent |> 
+  arrange(desc(Total_percent)) |> 
+  mutate(
+    Region = factor(Region, levels = Region),
+    Percent = formattable::percent(Total_percent)
+  )
+
+A_radial <- A_radial |> 
+  mutate(
+    label = factor(
+      paste0(Region, " - ", Percent),
+      levels = rev(paste0(Region, " - ", Percent))
+    )
+  )
+
+A_card <- A_dropNA |> 
+  group_by(year) |> 
+  summarise(
+    Total_Emissions = sum(Total_PM2.5_emissions, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+A_card_max <- A_card |> 
+  slice_max(Total_Emissions, n = 1)
+A_card_min <- A_card |> 
+  slice_min(Total_Emissions, n = 1)
+A_card_average <- A_card |> 
+  summarise(
+    Average = mean(Total_Emissions)
+  )
+```
+
+```{r TreeMap Emission Chart Creation}
+p_tree <- ggplot(data_ggplot) +
+  geom_rect(
+    aes(
+      xmin = x0,
+      ymin = y0,
+      xmax = xmax,
+      ymax = ymax,
+      fill = vColor
+    ),
+    colour = "#F7F9F9",
+    linewidth = 0.8
+  ) +
+  
+  geom_fit_text(
+    data = data_ggplot |> filter(rank <= 20),
+    aes(
+      xmin = x0,
+      xmax = xmax,
+      ymin = y0,
+      ymax = ymax,
+      label = label_country
+    ),
+    colour = "#FFF3D6",
+    min.size = 3,
+    reflow = TRUE
+  ) +
+  
+  scale_fill_manual(
+    values = c(
+      "L" = "#D97757",
+      "LM" = "#3D8989",
+      "UM" = "#176B6B",
+      "H" = "#243B53"
+    ),
+    labels = c(
+      "L" = "Low income",
+      "LM" = "Lower-middle income",
+      "UM" = "Upper-middle income",
+      "H" = "High income"
+    )
+  ) +
+  
+  labs(
+    title = "Cumulative PM2.5 Emissions tree map",
+    subtitle = "1990–2022 | Rectangle size represents cumulative emissions (thousand tonnes)",
+    caption = "Income groups based on 2022 classification"
+  ) +
+  
+  theme_void() +
+  theme(
+    plot.title = element_text(
+      colour = "#243B53",
+      size = 18,
+      face = "bold"
+    ),
+    plot.subtitle = element_text(
+      colour = "#176B6B",
+      size = 12
+    ),
+    plot.caption = element_text(
+      colour = "#243B53",
+      size = 8
+    ),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+```{r Radial Emission Bar Chart Creation}
+p_radial <- A_radial |> 
+  ggplot(aes(x = label, y = Total_percent, fill = label)) + 
+  geom_bar(width = 0.9, stat = "identity") + 
+  coord_polar(theta = "y") + 
+  ylim(c(0, 0.7)) +
+  scale_fill_manual(
+    values = c(
+     "Developing East Asia - 54.18%" = "#176B6B",
+    "Advanced Asia and the Pacific - 20.95%" = "#2C7A7B",
+    "South Asia - 14.56%" = "#5A9999",
+    "Other Asia - 10.31%" = "#B8D8D8"
+    )
+  ) + 
+  labs(fill = NULL) +
+  theme_void() + 
+  theme(
+    panel.background = element_rect(fill = "#FCFDFD", colour = NA),
+  plot.background  = element_rect(fill = "#FCFDFD", colour = NA),
+  legend.text = element_text(
+    size = 12,
+    colour = "#243B53",
+    face = "bold"
+  ),
+  legend.key.size = unit(0.6, "cm"),
+  legend.spacing.y = unit(6, "pt"),
+  legend.position = "right"
+)
+```
+
+```{r Donut Emission Chart Creation}
+p_donut <- A_radial |>
+  mutate(
+    Region = as.character(Region),
+    ymax = cumsum(Total_percent),
+    ymin = c(0, head(ymax, n = -1)),
+    labelPosition = (ymax + ymin) / 2,
+    Percent = formattable::percent(Total_percent, digits = 1)
+  ) |>
+  ggplot(
+    aes(
+      ymax = ymax,
+      ymin = ymin,
+      xmax = 4.4,
+      xmin = 3.08,
+      fill = Region
+    )
+  ) +
+  geom_rect(
+    colour = "#FCFDFD",
+    linewidth = 0.8
+  ) +
+  geom_text(
+    aes(
+      x = 3.8,
+      y = labelPosition,
+      label = Percent
+    ),
+     fill = "#243B53",
+  colour = "#FFFFFF",
+  size = 6.9,
+  fontface = "bold",
+  label.size = 0,
+  label.padding = grid::unit(0.2, "lines"),
+  label.r = grid::unit(0.15, "lines")
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Developing East Asia" = "#176B6B",
+      "Advanced Asia and the Pacific" = "#5267A8",
+      "South Asia" = "#398FA3",
+      "Other Asia" = "#6689A6"
+    ),
+    breaks = c(
+      "Developing East Asia",
+      "Advanced Asia and the Pacific",
+      "South Asia",
+      "Other Asia"
+    )
+  ) +
+  labs(fill = NULL) +
+  coord_polar(theta = "y") +
+  xlim(c(0, 4.8)) +
+  theme_void() +
+  theme(
+    panel.background = element_rect(
+      fill = "#FCFDFD", colour = NA
+    ),
+    plot.background = element_rect(
+      fill = "#FCFDFD", colour = NA
+    ),
+    legend.position = "right",
+    legend.text = element_text(
+      size = 18,
+      colour = "#243B53",
+      face = "bold"
+    ),
+    legend.key.size = grid::unit(0.75, "cm"),
+    legend.spacing.y = grid::unit(12, "pt")
+  )
+```
+
+```{r A - Table Creation}
+A_Table <- head(A, 100) |>
+  gt() |>
+  tab_header(
+    title = md("**PM2.5 Emissions Dataset**"),
+    subtitle = "Asian and Pacific Economies · 1990–2022"
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#B8D8D8"),
+    locations = cells_body(
+      columns = c(Economy_code, Country, year)
+    )
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#FDE8E2"),
+    locations = cells_body(
+      columns = c(
+        Total_PM2.5_emissions,
+        Road_PM2.5_emissions
+      )
+    )
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#E8F3F3"),
+    locations = cells_body(
+      columns = c(
+        Railways_PM2.5_emissions,
+        Navigation_PM2.5_emissions,
+        Aviation_PM2.5_emissions
+      )
+    )
+  ) |>
+  tab_style(
+   style = list(
+      cell_fill(color = "#243B53"),
+      cell_text(color = "#FFFFFF", weight = "bold")
+    ),
+    locations = cells_body(
+      columns = c(Income_Level, Subregion)
+    )
+  ) |>
+  tab_options(
+    table.font.size = px(12),
+    heading.background.color = "#176B6B",
+    heading.title.font.size = px(20),
+    heading.title.font.weight = "bold",
+    heading.subtitle.font.size = px(12),
+    column_labels.background.color = "#2C7A7B",
+    table.border.top.color = "#176B6B",
+    table.border.bottom.color = "#176B6B",
+    row.striping.background_color = "#F7F9F9"
+  )
+```
+
+
+
+
+
+
+# PM2.5 Exposure
+
+##  {width="45%"}
+
+###  {height="20%"}
+
+```{r}
+#| content: valuebox
+#| title: Most Exposure
+#| color: "#FDE8E2"
+#| icon: wind
+
+list( value = paste0( B_Most_Exposure$Country, " (", B_Most_Exposure$Year, ") ",
+                      round(B_Most_Exposure$PM2.5_Annual_Exposure, 2), " µg/m³" ) )
+```
+
+```{r}
+#| content: valuebox
+#| title: "Least Exposure"
+#| color: "#E8F3F3"
+#| icon: wind
+
+list( value = paste0( B_Least_Exposure$Country, " (", B_Least_Exposure$Year, ") ", "\u2003\u2003", round(B_Least_Exposure$PM2.5_Annual_Exposure, 2), " µg/m³" ) )
+```
+
+```{r}
+#| content: valuebox
+#| title: "Average Exposure"
+#| color: "#EAF0F5"
+#| icon: wind
+
+list(
+  value = paste0(round(B_Average_Exposure, 2), " µg/m³")
+)
+```
+
+###  {height="80%"}
+
+
+```{r Smooth Annual Exposure Chart}
+#| title: "PM2.5 air pollution annual exposure"
+p_exposure
+```
+
+
+##  {width="55%"}
+
+::: panel-tabset
+### By Income Level
+
+```{r Heatmap Annual Exposure Chart}
+#| title: PM2.5 Exposure by Income Level
+#| fig-width: 10
+#| fig-height: 8
+p_heatmap
+```
+
+
+### By Subregion
+
+```{r BarChart Annual Exposure Chart}
+#| title: PM2.5 Exposure by Subregion
+#| fig-width: 15
+#| fig-height: 9
+p_bar
+```
+:::
+
+# PM2.5 Concentration
+
+##  {width="55%"}
+
+<div class="map-tip">💡 Click on a country to reveal visual effects.</div>
+
+```{r World Map Total Concentration Chart}
+#| title: PM2.5 Concentration World Map
+#| fig-height: 6
+p_map_plotly
+```
+
+##  {width="45%"}
+
+::: panel-tabset
+### Top 24
+
+```{r Top 24 Rank Total Concentration Chart}
+#| fig-height: 25
+#| fig-width: 30
+#| out-width: 100% 
+#| title: PM2.5 Average Concentration Rank Bar Chart 
+p_top_plotly
+```
+
+### Bottom 24
+
+```{r Bottom 24 Rank Total Concentration Chart}
+#| fig-height: 25
+#| fig-width: 30
+#| out-width: 100% 
+#| title: PM2.5 Average Concentration Rank Bar Chart 
+p_bottom_plotly
+```
+:::
+
+# Urban vs Rural
+
+##  {width="60%"}
+
+```{r Lollipop Urban vs Rural Chart}
+#| title: Urban vs Rural PM2.5 Concentration
+p_lollipop
+```
+
+##  {width="40%"}
+
+###  {height="55%"}
+
+```{r Bubble Urban vs Rural Chart}
+#| title: Average PM2.5 Concentration Bubble Chart 2019
+#| fig-width: 16
+#| fig-height: 8
+p_bubble
+```
+
+###  {height="45%"}
+
+```{r Colored Table Disparity}
+#| title: PM2.5 Concentration table
+#| fig-width: 15
+p_table
+```
+
+# PM2.5 Emissions
+
+##  {width="60%"}
+
+```{r TreeMap Emission Chart}
+#| title: PM2.5 Emissions between ADB Countries
+p_tree
+```
+
+##  {width="40%"}
+
+###  {height="20%"}
+
+```{r}
+#| content: valuebox
+#| title: Average Annual Emissions
+#| color: "#EAF0F5"
+#| icon: bar-chart
+
+list(
+  value = paste0(
+    scales::comma(round(A_card_average$Average, 0)),
+    " kilotonnes"
+  )
+)
+```
+
+```{r}
+#| content: valuebox
+#| title: Highest Emissions Year
+#| color: "#FDE8E2"
+#| icon: graph-up-arrow
+
+list(
+  value = paste0(
+    A_card_max$year, "\u2003\u2003\u2003\u2003",
+    scales::comma(round(A_card_max$Total_Emissions, 0)),
+    " kilotonnes"
+  )
+)
+```
+
+```{r}
+#| content: valuebox
+#| title: Lowest Emissions Year
+#| color: "#E6F2F2"
+#| icon: graph-down-arrow
+
+
+list(
+  value = paste0(
+    A_card_min$year, "\u2003\u2003\u2003\u2003",
+    scales::comma(round(A_card_min$Total_Emissions, 0)),
+    " kilotonnes"
+  )
+)
+```
+
+###  {height="80%"}
+
+::: panel-tabset
+#### By Transport Mode
+
+```{r Spider Transport Emission Chart}
+#| title: Share of total PM2.5 Emissions by transport mode
+par(mar = c(1, 1, 1, 1))
+
+radarchart(
+  A_spider_chart,
+  axistype = 1,
+  seg = 3,
+  caxislabels = c("0%", "20%", "40%", "60%"),
+  cex.axis = 0.55,
+  
+  axislabcol = "#243B53",
+  cglcol = "#B8D8D8",
+  cglty = 1,
+  cglwd = 0.8,
+  
+  vlcex = 1.2,
+  
+  pcol = "#176B6B",
+  pfcol = "#176B6B33",
+  plwd = 2.2,
+  plty = 1,
+  
+  points = TRUE,
+  pty = 16,
+  cex = 1.1
+) 
+
+legend(
+  "topright",
+  legend = c(
+    "Aviation — 0.74%",
+    "Navigation — 48.04%",
+    "Railways — 14.50%",
+    "Road — 36.72%"
+  ),
+  bty = "n",
+  text.col = "#243B53",
+  cex = 0.95
+)
+```
+
+#### By Subregion 1
+
+```{r Emission Donut Chart}
+#| title: Donut Chart Share of total PM2.5 Emissions across Asian & Pacific 
+#| fig-width: 12
+#| fig-height: 8
+p_donut
+```
+
+#### By Subregion 2
+
+```{r Radial Emission Bar Chart}
+#| title: Radial Bar Chart Share of total PM2.5 Emissions across Asian & Pacific
+p_radial
+```
+
+:::
+
+# Data Sources
+
+## {.sidebar}
+
+### Overview
+
+This dashboard presents statistics on PM2.5 exposure, concentration, and emissions across Asian and Pacific economies, using data from the Asian Development Bank (ADB) Data Bank.
+
+---
+
+**COVERAGE**
+
+- **Economies**  
+  50–52 economies across Asia and the Pacific
+
+- **Time period**  
+  1990–2023
+
+- **Themes**  
+  PM2.5 exposure, concentration, and emissions
+
+---
+
+**DATA SOURCES**
+
+- [PM2.5 Emissions](https://github.com/Trvscape/PM2.5-Pollution-Dashboard/blob/main/A.csv)
+- [PM2.5 Exposure](https://github.com/Trvscape/PM2.5-Pollution-Dashboard/blob/main/B.csv)
+- [PM2.5 Concentration](https://github.com/Trvscape/PM2.5-Pollution-Dashboard/blob/main/C.csv)
+
+**Original source:** [Asian Transport Observatory (ATO)](https://asiantransportobservatory.org/snd/)
+
+
+## {width=65%}
+
+::: {.panel-tabset}
+
+### PM2.5 Emissions
+
+```{r A - Table}
+A_Table
+```
+
+### PM2.5 Exposure
+
+```{r B - Table}
+B_Table
+```
+
+### PM2.5 Concentration
+
+```{r C - Table}
+C_Table
+```
+
+:::
